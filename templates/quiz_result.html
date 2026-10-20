@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Results & MindPath Update — MindPath{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-9">
+        <!-- Results Summary Banner -->
+        <div class="twin-card p-4 p-md-5 mb-4 text-center">
+            <span class="fs-1">🎉</span>
+            <h2 class="fw-bold mt-2 mb-1">{{ 'Diagnostic Assessment Completed!' if is_assessment else 'Quiz Completed!' }}</h2>
+            <p class="text-muted mb-3">{{ topic.name }} ({{ topic.subject }})</p>
+
+            <div class="d-inline-flex align-items-center gap-4 bg-light px-4 py-3 rounded-4 mb-4">
+                <div>
+                    <div class="text-muted small text-uppercase fw-semibold">Score</div>
+                    <div class="fs-2 fw-bold text-primary">{{ score }} / {{ total_questions }}</div>
+                </div>
+                <div class="vr"></div>
+                <div>
+                    <div class="text-muted small text-uppercase fw-semibold">Accuracy</div>
+                    <div class="fs-2 fw-bold text-success">{{ ((score / total_questions) * 100) | round(1) if total_questions > 0 else 0 }}%</div>
+                </div>
+                <div class="vr"></div>
+                <div>
+                    <div class="text-muted small text-uppercase fw-semibold">Time Spent</div>
+                    <div class="fs-2 fw-bold text-warning">{{ time_taken_seconds }}s</div>
+                </div>
+            </div>
+
+            <!-- MindPath Real-Time Update Card -->
+            <div class="alert alert-primary text-start p-3 p-md-4 rounded-3 mb-0">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="fs-5">🧠</span>
+                    <h5 class="fw-bold mb-0 text-primary-emphasis">
+                        {{ 'MindPath Baseline Established!' if is_assessment else 'MindPath Updated in Real-Time!' }}
+                    </h5>
+                </div>
+                <p class="small text-muted mb-3">
+                    Your cognitive profile has absorbed these responses into its computational model:
+                </p>
+                <div class="row g-3 text-center">
+                    <div class="col-4">
+                        <div class="bg-white p-2 rounded-2 border">
+                            <div class="text-muted small">Updated Topic Accuracy</div>
+                            <div class="fw-bold fs-5 text-dark">{{ twin_update.get('new_accuracy', ((score / total_questions) * 100) | round(1)) }}%</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="bg-white p-2 rounded-2 border">
+                            <div class="text-muted small">Updated Mastery Status</div>
+                            <div class="fw-bold fs-5">
+                                {% set m = twin_update.get('new_mastery', 'AVERAGE') %}
+                                {% if m == 'STRONG' %}
+                                <span class="badge badge-strong">🟢 STRONG</span>
+                                {% elif m == 'WEAK' %}
+                                <span class="badge badge-weak">🔴 WEAK</span>
+                                {% else %}
+                                <span class="badge badge-average">🟡 AVERAGE</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="bg-white p-2 rounded-2 border">
+                            <div class="text-muted small">Avg Response Speed</div>
+                            <div class="fw-bold fs-5 text-dark">{{ twin_update.get('new_avg_time', (time_taken_seconds / total_questions) | round(1)) }}s</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question Breakdown with AI Explanations -->
+        <h4 class="fw-bold mb-3"><i class="bi bi-journal-check me-2 text-primary"></i>Detailed Question Review</h4>
+
+        {% for res in review %}
+        <div class="twin-card p-4 mb-3 border-start border-4 {{ 'border-success' if res.is_correct else 'border-danger' }}">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge {{ 'bg-success' if res.is_correct else 'bg-danger' }}">
+                    {{ '✓ Correct' if res.is_correct else '✗ Incorrect' }}
+                </span>
+                <span class="badge bg-light text-muted border text-uppercase">{{ res.difficulty }}</span>
+            </div>
+
+            <h6 class="fw-bold mb-3 text-dark">{{ loop.index }}. {{ res.question_text }}</h6>
+
+            <div class="row g-2 mb-3 small">
+                <div class="col-12 col-md-6">
+                    <div class="p-2 rounded bg-light border">
+                        <span class="text-muted d-block">Your Selected Answer:</span>
+                        <span class="fw-bold {{ 'text-success' if res.is_correct else 'text-danger' }}">
+                            {{ res.selected_option }}. {{ res.selected_text }}
+                        </span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="p-2 rounded bg-light border">
+                        <span class="text-muted d-block">Correct Answer:</span>
+                        <span class="fw-bold text-success">
+                            {{ res.correct_option }}. {{ res.correct_text }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {% if not res.is_correct %}
+            <div class="ai-box mt-3">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="text-primary fw-bold small"><i class="bi bi-stars"></i> AI Explanation & Misconception Analysis:</span>
+                </div>
+                <div class="small text-secondary" style="line-height: 1.5;">
+                    {{ res.ai_explanation }}
+                </div>
+            </div>
+            {% else %}
+            <div class="small text-muted bg-light p-2 rounded border">
+                <i class="bi bi-info-circle me-1 text-primary"></i> <strong>Concept:</strong> {{ res.explanation }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <!-- Navigation Buttons -->
+        <div class="d-flex justify-content-between align-items-center mt-4">
+            <a href="{{ url_for('select_quiz') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-grid me-1"></i> Practice More Quizzes
+            </a>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary fw-semibold px-4">
+                View Updated MindPath Dashboard <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

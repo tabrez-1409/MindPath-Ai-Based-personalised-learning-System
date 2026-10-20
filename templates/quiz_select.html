@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Select Topic — MindPath Adaptive Quiz{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-10">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="fw-bold mb-1">🎯 Select an Adaptive Quiz</h3>
+                <p class="text-muted mb-0">The MindPath engine dynamically adjusts questions to your personal mastery level.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('custom_quiz') }}" class="btn btn-primary btn-sm fw-semibold">
+                    <i class="bi bi-plus-circle me-1"></i> Create Custom Quiz
+                </a>
+                <a href="{{ url_for('assessment') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-clipboard2-check me-1"></i> Baseline Assessment
+                </a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> MindPath Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Custom Quiz CTA Banner -->
+        <div class="twin-card p-4 mb-4 border border-primary-subtle bg-primary-subtle bg-opacity-10">
+            <div class="row align-items-center">
+                <div class="col-12 col-md-8">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="badge bg-primary text-white">✨ AI Powered</span>
+                        <h5 class="fw-bold mb-0 text-primary">Study Any Subject or Topic</h5>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">
+                        You are not limited to predefined topics. Enter any subject and topic (e.g. Operating Systems, Networks, AI) to generate adaptive quizzes dynamically!
+                    </p>
+                </div>
+                <div class="col-12 col-md-4 text-md-end mt-3 mt-md-0">
+                    <a href="{{ url_for('custom_quiz') }}" class="btn btn-primary fw-semibold px-3 py-2">
+                        <i class="bi bi-magic me-1"></i> Launch Custom Quiz
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            {% for topic in topics %}
+            <div class="col-12 col-md-6">
+                <div class="twin-card p-4 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-secondary-subtle text-secondary border">{{ topic.subject }}</span>
+                            {% if topic.mastery_status == 'STRONG' %}
+                            <span class="badge badge-strong">🟢 STRONG</span>
+                            {% elif topic.mastery_status == 'WEAK' %}
+                            <span class="badge badge-weak">🔴 WEAK</span>
+                            {% elif topic.mastery_status == 'AVERAGE' %}
+                            <span class="badge badge-average">🟡 AVERAGE</span>
+                            {% else %}
+                            <span class="badge bg-light text-muted border">⚪ UNASSESSED</span>
+                            {% endif %}
+                        </div>
+                        <h5 class="fw-bold mb-2">{{ topic.name }}</h5>
+                        <p class="text-muted small mb-3">{{ topic.description }}</p>
+                    </div>
+
+                    <div>
+                        <div class="d-flex justify-content-between small text-muted mb-2">
+                            <span>Accuracy: <strong>{{ topic.accuracy_rate }}%</strong></span>
+                            <span>Attempts: <strong>{{ topic.total_attempted }} questions</strong></span>
+                        </div>
+                        <a href="{{ url_for('take_quiz', topic_id=topic.id) }}" class="btn btn-primary w-100 fw-semibold">
+                            Start Adaptive Quiz <i class="bi bi-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

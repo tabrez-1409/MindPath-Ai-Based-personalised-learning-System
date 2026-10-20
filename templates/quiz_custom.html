@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Create Custom Quiz — MindPath{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="fw-bold mb-1">✨ Create Custom Quiz</h3>
+                <p class="text-muted mb-0">Enter any computer science subject and topic. Questions will be generated or retrieved dynamically for your MindPath.</p>
+            </div>
+            <a href="{{ url_for('select_quiz') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Browse Quizzes
+            </a>
+        </div>
+
+        <!-- Form Card -->
+        <div class="twin-card p-4 p-md-5 mb-4 shadow-sm">
+            <form method="POST" action="{{ url_for('custom_quiz') }}" id="custom-quiz-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Subject Input with Datalist -->
+                <div class="mb-4">
+                    <label for="subject" class="form-label fw-semibold">
+                        <i class="bi bi-book text-primary me-1"></i> Subject
+                    </label>
+                    <input 
+                        type="text" 
+                        class="form-control form-control-lg" 
+                        id="subject" 
+                        name="subject" 
+                        list="subject-suggestions" 
+                        placeholder="" 
+                        value="{{ selected_subject or '' }}" 
+                        autocomplete="off" 
+                        required
+                    >
+                    <datalist id="subject-suggestions">
+                        {% for s in subjects %}
+                        <option value="{{ s }}"></option>
+                        {% endfor %}
+                    </datalist>
+                    <div class="form-text">
+                        Type any subject freely. Suggestions from stored curriculum appear automatically.
+                    </div>
+                </div>
+
+                <!-- Topic Input with Datalist -->
+                <div class="mb-4">
+                    <label for="topic" class="form-label fw-semibold">
+                        <i class="bi bi-lightbulb text-primary me-1"></i> Topic
+                    </label>
+                    <input 
+                        type="text" 
+                        class="form-control form-control-lg" 
+                        id="topic" 
+                        name="topic" 
+                        list="topic-suggestions" 
+                        placeholder="" 
+                        value="{{ selected_topic or '' }}" 
+                        autocomplete="off" 
+                        required
+                    >
+                    <datalist id="topic-suggestions">
+                        {% for t in topics %}
+                        <option value="{{ t.name }}">{{ t.subject }}: {{ t.name }}</option>
+                        {% endfor %}
+                    </datalist>
+                    <div class="form-text">
+                        Type any topic freely. The AI engine will generate conceptual questions for this exact topic.
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <!-- Difficulty Selection -->
+                    <div class="col-12 col-md-6">
+                        <label for="difficulty" class="form-label fw-semibold">
+                            <i class="bi bi-bar-chart-steps text-primary me-1"></i> Difficulty Level
+                        </label>
+                        <select class="form-select form-select-lg" id="difficulty" name="difficulty">
+                            <option value="adaptive" {% if selected_difficulty == 'adaptive' or not selected_difficulty %}selected{% endif %}>
+                                🎯 Adaptive (Tailored)
+                            </option>
+                            <option value="easy" {% if selected_difficulty == 'easy' %}selected{% endif %}>
+                                🟢 Easy
+                            </option>
+                            <option value="medium" {% if selected_difficulty == 'medium' %}selected{% endif %}>
+                                🟡 Medium
+                            </option>
+                            <option value="hard" {% if selected_difficulty == 'hard' %}selected{% endif %}>
+                                🔴 Hard 
+                            </option>
+                        </select>
+                        <div class="form-text">Adaptive uses your MindPath model to pick the optimal challenge tier.</div>
+                    </div>
+
+                    <!-- Question Count Selection -->
+                    <div class="col-12 col-md-6">
+                        <label for="count" class="form-label fw-semibold">
+                            <i class="bi bi-question-circle text-primary me-1"></i> Question Count
+                        </label>
+                        <select class="form-select form-select-lg" id="count" name="count">
+                            <option value="3" {% if selected_count == '3' or not selected_count %}selected{% endif %}>3 Questions (Quick Diagnostic)</option>
+                            <option value="5" {% if selected_count == '5' %}selected{% endif %}>5 Questions (Standard Practice)</option>
+                            <option value="10" {% if selected_count == '10' %}selected{% endif %}>10 Questions (Comprehensive Test)</option>
+                        </select>
+                        <div class="form-text">Choose the length of your session.</div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <div class="d-grid gap-2 pt-2">
+                    <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm" id="submit-btn">
+                        <i class="bi bi-play-circle-fill me-2"></i> Launch Quiz
+                    </button>
+                    <div class="text-center small text-muted mt-2" id="loading-hint" style="display: none;">
+                        <span class="spinner-border spinner-border-sm text-primary me-1" role="status"></span>
+                        Generating verified AI questions... Please wait a few seconds.
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Stored Topics Explorer / Quick Pre-fill -->
+        {% if topics %}
+        <div class="twin-card p-4 mb-4">
+            <h6 class="fw-bold mb-3 text-muted text-uppercase" style="letter-spacing: 0.5px;">
+                <i class="bi bi-collection me-1"></i> Quick Pick from Existing Topics
+            </h6>
+            <div class="d-flex flex-wrap gap-2">
+                {% for t in topics %}
+                <button type="button" class="btn btn-sm btn-outline-secondary quick-pick-btn" 
+                        data-subject="{{ t.subject }}" data-topic="{{ t.name }}">
+                    <span class="badge bg-secondary-subtle text-secondary me-1">{{ t.subject }}</span>
+                    {{ t.name }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Form submit loading state
+    const form = document.getElementById('custom-quiz-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const loadingHint = document.getElementById('loading-hint');
+
+    form.addEventListener('submit', function() {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Preparing Quiz...';
+        loadingHint.style.display = 'block';
+    });
+
+    // Quick pick buttons fill the form inputs
+    document.querySelectorAll('.quick-pick-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.getElementById('subject').value = this.getAttribute('data-subject');
+            document.getElementById('topic').value = this.getAttribute('data-topic');
+            window.scrollTo({ top: form.offsetTop - 80, behavior: 'smooth' });
+        });
+    });
+</script>
+{% endblock %}

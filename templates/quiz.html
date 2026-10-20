@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Adaptive Quiz — {{ topic.name }} | MindPath{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <!-- Quiz Header Bar with Real-Time Clock/Timer -->
+        <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+            <div>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle mb-1">{{ topic.subject }}</span>
+                <h3 class="fw-bold mb-0">{{ topic.name }}</h3>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="text-end d-none d-sm-block">
+                    <span class="small text-muted d-block">Dynamic Timer</span>
+                    <span class="timer-pill" id="timer-display">⏱️ 00:00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-4">
+            <i class="bi bi-robot fs-5 text-primary"></i>
+            <div>
+                {% if difficulty_mode and difficulty_mode != 'adaptive' %}
+                <strong>Targeted Difficulty ({{ difficulty_mode|upper }}):</strong> Questions selected for your requested challenge tier. Current MindPath mastery: {{ mastery }}.
+                {% else %}
+                <strong>Adaptive Engine Active:</strong> The difficulty of these questions has been tailored to your MindPath mastery state ({{ mastery }}).
+                {% endif %}
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('submit_quiz', topic_id=topic.id) }}" id="quiz-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="quiz_token" value="{{ quiz_token }}">
+            <input type="hidden" name="time_taken_seconds" id="time_taken_input" value="0">
+
+            {% for q in questions %}
+            <div class="twin-card p-4 mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="badge bg-light text-dark border fw-bold">Question {{ loop.index }} of {{ questions|length }}</span>
+                    {% if q.difficulty == 'easy' %}
+                    <span class="badge badge-strong"><i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> EASY</span>
+                    {% elif q.difficulty == 'medium' %}
+                    <span class="badge badge-average"><i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> MEDIUM</span>
+                    {% else %}
+                    <span class="badge badge-weak"><i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> HARD</span>
+                    {% endif %}
+                </div>
+
+                <h5 class="fw-semibold mb-4 text-dark">{{ q.question_text }}</h5>
+
+                <div class="d-flex flex-column gap-2 mb-2">
+                    <label class="quiz-option-card d-flex align-items-center gap-3">
+                        <input type="radio" class="form-check-input my-0" name="question_{{ q.id }}" value="A" required>
+                        <span class="quiz-option-label"><strong>A.</strong> {{ q.option_a }}</span>
+                    </label>
+
+                    <label class="quiz-option-card d-flex align-items-center gap-3">
+                        <input type="radio" class="form-check-input my-0" name="question_{{ q.id }}" value="B">
+                        <span class="quiz-option-label"><strong>B.</strong> {{ q.option_b }}</span>
+                    </label>
+
+                    <label class="quiz-option-card d-flex align-items-center gap-3">
+                        <input type="radio" class="form-check-input my-0" name="question_{{ q.id }}" value="C">
+                        <span class="quiz-option-label"><strong>C.</strong> {{ q.option_c }}</span>
+                    </label>
+
+                    <label class="quiz-option-card d-flex align-items-center gap-3">
+                        <input type="radio" class="form-check-input my-0" name="question_{{ q.id }}" value="D">
+                        <span class="quiz-option-label"><strong>D.</strong> {{ q.option_d }}</span>
+                    </label>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="d-flex justify-content-between align-items-center mt-4 pt-2">
+                <a href="{{ url_for('select_quiz') }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold shadow-sm">
+                    Submit Quiz & Update MindPath <i class="bi bi-send-check ms-1"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Live timer
+    let secondsElapsed = 0;
+    const timerDisplay = document.getElementById('timer-display');
+    const timeTakenInput = document.getElementById('time_taken_input');
+
+    const timerInterval = setInterval(function() {
+        secondsElapsed++;
+        timeTakenInput.value = secondsElapsed;
+        
+        const mins = Math.floor(secondsElapsed / 60);
+        const secs = secondsElapsed % 60;
+        const formatted = `⏱️ ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        timerDisplay.textContent = formatted;
+    }, 1000);
+
+    // Highlight selected card visually
+    document.querySelectorAll('.quiz-option-card input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const name = this.getAttribute('name');
+            document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+                r.closest('.quiz-option-card').classList.remove('selected');
+            });
+            if (this.checked) {
+                this.closest('.quiz-option-card').classList.add('selected');
+            }
+        });
+    });
+</script>
+{% endblock %}

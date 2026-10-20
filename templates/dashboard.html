@@ -1,0 +1,659 @@
+{% extends "base.html" %}
+
+{% block title %}Learning Dashboard — MindPath{% endblock %}
+
+{% block content %}
+
+<!-- =========================
+     DASHBOARD HEADER
+========================= -->
+<div class="dashboard-header mb-4">
+    <div>
+        <div class="small text-uppercase fw-semibold text-primary mb-1">
+            Learning Dashboard
+        </div>
+
+        <h1 class="dashboard-title mb-2">
+            Welcome back, {{ current_user.name }}
+        </h1>
+
+        <p class="text-muted mb-0">
+            Track your learning progress, identify areas for improvement,
+            and practice any subject or topic.
+        </p>
+    </div>
+
+    <div class="dashboard-actions">
+        <a href="{{ url_for('select_quiz') }}" class="btn btn-primary">
+            <i class="bi bi-play-circle me-1"></i> Take a Quiz
+        </a>
+
+        <a href="{{ url_for('custom_quiz') }}" class="btn btn-outline-primary">
+            <i class="bi bi-plus-circle me-1"></i> Custom Quiz
+        </a>
+    </div>
+</div>
+
+
+{% if twin_data.is_new_student %}
+
+<!-- =========================
+     NEW STUDENT / ZERO STATE
+========================= -->
+<div class="welcome-panel mb-4">
+    <div class="row align-items-center g-4">
+
+        <div class="col-12 col-lg-8">
+            <div class="section-label">
+                <i class="bi bi-activity me-1"></i>
+                MindPath Setup
+            </div>
+
+            <h2 class="fw-bold mb-2">
+                Start building your learning profile
+            </h2>
+
+            <p class="text-muted mb-4">
+                Your MindPath is ready, but it needs your first assessment
+                to understand your strengths, weaknesses, accuracy and response
+                patterns.
+            </p>
+
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('assessment') }}"
+                   class="btn btn-primary px-4">
+                    <i class="bi bi-clipboard2-check me-2"></i>
+                    Start Initial Assessment
+                </a>
+
+                <a href="{{ url_for('select_quiz') }}"
+                   class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-grid me-2"></i>
+                    Browse Quizzes
+                </a>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4">
+            <div class="zero-score">
+                <div class="zero-score-value">0%</div>
+                <div class="zero-score-label">
+                    Assessment Pending
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% else %}
+
+<!-- =========================
+     ACTIVE MINDPATH
+========================= -->
+<div class="learning-summary mb-4">
+
+    <div>
+        <div class="section-label">
+            <i class="bi bi-person-check me-1"></i>
+            Learning Profile
+        </div>
+
+        <h2 class="fw-bold mb-1">
+            Your Learning Overview
+        </h2>
+
+        <p class="text-muted mb-0">
+            Your MindPath is updated from your quiz performance and
+            learning activity.
+        </p>
+    </div>
+
+    <div class="overall-score">
+        <div class="score-label">Overall Learning Score</div>
+        <div class="score-number">
+            {{ twin_data.learning_score }}%
+        </div>
+    </div>
+
+</div>
+
+{% endif %}
+
+
+<!-- =========================
+     PERFORMANCE METRICS
+========================= -->
+<div class="section-heading mb-3">
+    <div>
+        <h4 class="fw-bold mb-1">Learning Performance</h4>
+        <p class="text-muted small mb-0">
+            Key indicators from your recent activity
+        </p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+
+    <!-- Accuracy -->
+    <div class="col-6 col-md-3">
+        <div class="metric-box metric-acc">
+            <div class="metric-icon">
+                <i class="bi bi-bullseye"></i>
+            </div>
+
+            <div class="metric-label">Accuracy</div>
+
+            <div class="metric-val">
+                {% if twin_data.is_new_student %}
+                    --
+                {% else %}
+                    {{ twin_data.overall_accuracy }}%
+                {% endif %}
+            </div>
+
+            <div class="metric-description">
+                Correct answers
+            </div>
+        </div>
+    </div>
+
+    <!-- Speed -->
+    <div class="col-6 col-md-3">
+        <div class="metric-box metric-spd">
+            <div class="metric-icon">
+                <i class="bi bi-stopwatch"></i>
+            </div>
+
+            <div class="metric-label">Speed Index</div>
+
+            <div class="metric-val">
+                {% if twin_data.is_new_student %}
+                    --
+                {% else %}
+                    {{ twin_data.speed_score }}%
+                {% endif %}
+            </div>
+
+            <div class="metric-description">
+                {% if twin_data.avg_speed_time > 0 %}
+                    ~{{ twin_data.avg_speed_time }}s / question
+                {% else %}
+                    Not calibrated
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Consistency -->
+    <div class="col-6 col-md-3">
+        <div class="metric-box metric-con">
+            <div class="metric-icon">
+                <i class="bi bi-graph-up"></i>
+            </div>
+
+            <div class="metric-label">Consistency</div>
+
+            <div class="metric-val">
+                {% if twin_data.consistency_score is not none %}
+                    {{ twin_data.consistency_score }}%
+                {% else %}
+                    --
+                {% endif %}
+            </div>
+
+            <div class="metric-description">
+                {% if twin_data.consistency_score is not none %}
+                    Performance stability
+                {% else %}
+                    Needs 2+ quizzes
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Improvement -->
+    <div class="col-6 col-md-3">
+        <div class="metric-box metric-imp">
+            <div class="metric-icon">
+                <i class="bi bi-arrow-up-right"></i>
+            </div>
+
+            <div class="metric-label">Improvement</div>
+
+            <div class="metric-val">
+                {% if twin_data.improvement_rate is not none %}
+                    <span class="{{ 'text-success' if twin_data.improvement_rate >= 0 else 'text-danger' }}">
+                        {{ '+' if twin_data.improvement_rate > 0 else '' }}{{ twin_data.improvement_rate }}%
+                    </span>
+                {% else %}
+                    --
+                {% endif %}
+            </div>
+
+            <div class="metric-description">
+                {% if twin_data.improvement_rate is not none %}
+                    Change over time
+                {% else %}
+                    Needs 3+ quizzes
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- =========================
+     WEAK AREA + STUDY PLAN
+========================= -->
+<div class="row g-4 mb-4">
+
+    <!-- Weak Topic -->
+    <div class="col-12 col-lg-5">
+        <div class="twin-card dashboard-section-card h-100">
+
+            <div class="section-card-header">
+                <div>
+                    <div class="section-label text-danger">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        Focus Area
+                    </div>
+
+                    <h5 class="fw-bold mb-0">
+                        Topic Requiring Attention
+                    </h5>
+                </div>
+            </div>
+
+            {% if twin_data.primary_weak %}
+
+                <div class="focus-topic">
+                    <div class="focus-topic-name">
+                        {{ twin_data.primary_weak.topic_name }}
+                    </div>
+
+                    <div class="text-muted small mb-3">
+                        {{ twin_data.primary_weak.subject }}
+                    </div>
+
+                    <div class="focus-stat">
+                        <span>Accuracy</span>
+                        <strong class="text-danger">
+                            {{ twin_data.primary_weak.accuracy_rate }}%
+                        </strong>
+                    </div>
+
+                    <div class="progress mb-3" style="height: 7px;">
+                        <div class="progress-bar bg-danger"
+                             style="width: {{ twin_data.primary_weak.accuracy_rate }}%;">
+                        </div>
+                    </div>
+
+                    <div class="focus-details">
+                        <span>
+                            <i class="bi bi-clock me-1"></i>
+                            {{ twin_data.primary_weak.avg_time_per_question }}s average
+                        </span>
+
+                        <span class="badge badge-weak">
+                            Needs Practice
+                        </span>
+                    </div>
+                </div>
+
+                <div class="small text-muted mb-3">
+                    {{ twin_data.prediction.message }}
+                </div>
+
+                <a href="{{ url_for('take_quiz', topic_id=twin_data.primary_weak.topic_id) }}"
+                   class="btn btn-danger w-100">
+                    <i class="bi bi-play-fill me-1"></i>
+                    Practice This Topic
+                </a>
+
+            {% elif twin_data.is_new_student %}
+
+                <div class="empty-state">
+                    <i class="bi bi-clipboard2-pulse"></i>
+
+                    <h6 class="fw-bold mt-3">
+                        No learning data yet
+                    </h6>
+
+                    <p class="text-muted small">
+                        Complete your initial assessment to identify
+                        your strengths and areas for improvement.
+                    </p>
+
+                    <a href="{{ url_for('assessment') }}"
+                       class="btn btn-outline-primary btn-sm">
+                        Start Assessment
+                    </a>
+                </div>
+
+            {% else %}
+
+                <div class="empty-state">
+                    <i class="bi bi-check-circle"></i>
+
+                    <h6 class="fw-bold mt-3">
+                        No critical weak areas
+                    </h6>
+
+                    <p class="text-muted small">
+                        Keep practicing and explore new subjects or topics.
+                    </p>
+
+                    <a href="{{ url_for('custom_quiz') }}"
+                       class="btn btn-outline-primary btn-sm">
+                        Explore a New Topic
+                    </a>
+                </div>
+
+            {% endif %}
+
+        </div>
+    </div>
+
+
+    <!-- Study Plan -->
+    <div class="col-12 col-lg-7">
+        <div class="twin-card dashboard-section-card h-100">
+
+            <div class="section-card-header">
+                <div>
+                    <div class="section-label text-primary">
+                        <i class="bi bi-lightbulb me-1"></i>
+                        Recommendations
+                    </div>
+
+                    <h5 class="fw-bold mb-0">
+                        Recommended Study Plan
+                    </h5>
+                </div>
+
+                <span class="ai-label">
+                    AI Assisted
+                </span>
+            </div>
+
+            <p class="text-muted small mb-3">
+                Recommendations based on your MindPath performance,
+                accuracy and response patterns.
+            </p>
+
+            <div class="ai-box">
+                <div style="white-space: pre-line;" class="text-dark">
+                    {{ ai_roadmap }}
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+
+<!-- =========================
+     CHARTS
+========================= -->
+<div class="section-heading mb-3">
+    <div>
+        <h4 class="fw-bold mb-1">Performance Analysis</h4>
+        <p class="text-muted small mb-0">
+            Visual representation of your learning performance
+        </p>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+
+    <!-- Radar -->
+    <div class="col-12 col-lg-5">
+        <div class="twin-card chart-card h-100">
+
+            <div class="chart-header">
+                <div>
+                    <h5 class="fw-bold mb-1">
+                        Subject Competency
+                    </h5>
+
+                    <p class="text-muted small mb-0">
+                        Accuracy by subject
+                    </p>
+                </div>
+            </div>
+
+            <div style="height: 280px; position: relative;"
+                 id="radar-chart-container">
+                <canvas id="subjectRadarChart"></canvas>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- Bar -->
+    <div class="col-12 col-lg-7">
+        <div class="twin-card chart-card h-100">
+
+            <div class="chart-header">
+                <div>
+                    <h5 class="fw-bold mb-1">
+                        Topic Accuracy
+                    </h5>
+
+                    <p class="text-muted small mb-0">
+                        Performance across individual topics
+                    </p>
+                </div>
+            </div>
+
+            <div style="height: 280px; position: relative;"
+                 id="bar-chart-container">
+                <canvas id="topicBarChart"></canvas>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+
+<!-- =========================
+     TOPIC STATUS
+========================= -->
+<div class="twin-card dashboard-section-card mb-4">
+
+    <div class="section-card-header">
+
+        <div>
+            <div class="section-label text-primary">
+                <i class="bi bi-table me-1"></i>
+                Learning Data
+            </div>
+
+            <h5 class="fw-bold mb-0">
+                Subject & Topic Progress
+            </h5>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+
+            <a href="{{ url_for('assessment') }}"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-clipboard2-check me-1"></i>
+                Assessment
+            </a>
+
+            <a href="{{ url_for('select_quiz') }}"
+               class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-plus-circle me-1"></i>
+                Take Quiz
+            </a>
+
+            <a href="{{ url_for('custom_quiz') }}"
+               class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>
+                Custom Topic
+            </a>
+
+        </div>
+    </div>
+
+
+    <div class="table-responsive">
+
+        <table class="table learning-table align-middle mb-0">
+
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Topic</th>
+                    <th>Attempts</th>
+                    <th>Accuracy</th>
+                    <th>Response Time</th>
+                    <th>Mastery</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for topic in twin_data.topics %}
+
+                <tr>
+
+                    <td>
+                        <span class="subject-name">
+                            {{ topic.subject }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="topic-name">
+                            {{ topic.topic_name }}
+                        </span>
+                    </td>
+
+                    <td>
+                        {% if topic.total_attempted > 0 %}
+                            <span class="small">
+                                {{ topic.total_attempted }}
+                            </span>
+                        {% else %}
+                            <span class="text-muted small">
+                                Unassessed
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+
+                        {% if topic.total_attempted > 0 %}
+
+                        <div class="accuracy-cell">
+
+                            <div class="progress accuracy-progress">
+                                <div class="progress-bar
+                                    {{ 'bg-danger' if topic.accuracy_rate < 50
+                                    else ('bg-warning' if topic.accuracy_rate <= 75
+                                    else 'bg-success') }}"
+                                    style="width: {{ topic.accuracy_rate }}%;">
+                                </div>
+                            </div>
+
+                            <span class="accuracy-value">
+                                {{ topic.accuracy_rate }}%
+                            </span>
+
+                        </div>
+
+                        {% else %}
+
+                            <span class="text-muted small">--</span>
+
+                        {% endif %}
+
+                    </td>
+
+                    <td>
+
+                        {% if topic.total_attempted > 0 %}
+                            <span class="small">
+                                {{ topic.avg_time_per_question }}s
+                            </span>
+                        {% else %}
+                            <span class="text-muted small">--</span>
+                        {% endif %}
+
+                    </td>
+
+                    <td>
+
+                        {% if topic.mastery_status == 'STRONG' %}
+
+                            <span class="badge badge-strong">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Strong
+                            </span>
+
+                        {% elif topic.mastery_status == 'WEAK' %}
+
+                            <span class="badge badge-weak">
+                                <i class="bi bi-exclamation-circle me-1"></i>
+                                Weak
+                            </span>
+
+                        {% elif topic.mastery_status == 'AVERAGE' %}
+
+                            <span class="badge badge-average">
+                                <i class="bi bi-dash-circle me-1"></i>
+                                Average
+                            </span>
+
+                        {% else %}
+
+                            <span class="badge bg-light text-muted border">
+                                <i class="bi bi-hourglass me-1"></i>
+                                Unassessed
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+                    <td class="text-end">
+
+                        <a href="{{ url_for('take_quiz', topic_id=topic.topic_id) }}"
+                           class="btn btn-sm btn-outline-primary">
+                            Practice
+                        </a>
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+
+<!-- Chart data for dashboard.js -->
+<script id="mindpath-chart-data" type="application/json">
+    {{ chart_json | safe }}
+</script>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
