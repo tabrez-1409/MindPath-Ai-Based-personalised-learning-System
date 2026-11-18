@@ -61,7 +61,9 @@ def init_db(db_path=None):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             subject TEXT NOT NULL,
             name TEXT NOT NULL,
-            description TEXT
+            description TEXT,
+            is_generated INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         ''')
         cursor.execute('''
@@ -82,7 +84,7 @@ def init_db(db_path=None):
             correct_option TEXT NOT NULL,
             difficulty TEXT NOT NULL CHECK(difficulty IN ('easy', 'medium', 'hard')),
             explanation TEXT,
-            FOREIGN KEY (topic_id) REFERENCES topics (id)
+            FOREIGN KEY (topic_id) REFERENCES topics (id) ON DELETE CASCADE
         )
         ''')
 
@@ -107,12 +109,12 @@ def init_db(db_path=None):
         CREATE TABLE IF NOT EXISTS quiz_answers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             attempt_id INTEGER NOT NULL,
-            question_id INTEGER NOT NULL,
+            question_id INTEGER,
             selected_option TEXT NOT NULL,
             is_correct INTEGER NOT NULL,
             time_spent_seconds INTEGER NOT NULL,
             FOREIGN KEY (attempt_id) REFERENCES quiz_attempts (id) ON DELETE CASCADE,
-            FOREIGN KEY (question_id) REFERENCES questions (id)
+            FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE SET NULL
         )
         ''')
 
@@ -130,7 +132,7 @@ def init_db(db_path=None):
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_id, topic_id),
             FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-            FOREIGN KEY (topic_id) REFERENCES topics (id)
+            FOREIGN KEY (topic_id) REFERENCES topics (id) ON DELETE CASCADE
         )
         ''')
 
@@ -146,6 +148,8 @@ def migrate_db(db_path=None):
     Performs safe, non-destructive migration of existing databases:
     - Adds missing columns in users (password_hash, course, academic_year, learning_goal, role)
     - Adds quiz_type column to quiz_attempts if missing
+    - Adds is_generated and created_at columns to topics if missing
+    - Recreates questions, quiz_answers, student_twin_profile tables with proper ON DELETE FKs
     - Cleans out legacy demo records (Aarav/Sneha) and associated fake records
     - Ensures WAL mode
     """
@@ -203,6 +207,105 @@ def migrate_db(db_path=None):
             cursor.execute('INSERT INTO quiz_attempts_new (id, user_id, topic_id, quiz_type, score, total_questions, time_taken_seconds, created_at) SELECT id, user_id, topic_id, quiz_type, score, total_questions, time_taken_seconds, created_at FROM quiz_attempts')
             cursor.execute('DROP TABLE quiz_attempts')
             cursor.execute('ALTER TABLE quiz_attempts_new RENAME TO quiz_attempts')
+            cursor.execute("PRAGMA foreign_keys = ON")
+
+        # --- Migrate topics: add is_generated and created_at columns if missing ---
+        cursor.execute("PRAGMA table_info(topics)")
+        topic_cols = [col[1] for col in cursor.fetchall()]
+        if 'is_generated' not in topic_cols:
+            cursor.execute("ALTER TABLE topics ADD COLUMN is_generated INTEGER NOT NULL DEFAULT 0")
+        if 'created_at' not in topic_cols:
+            # SQLite ALTER TABLE does not support non-constant defaults like CURRENT_TIMESTAMP.
+            # Use a fixed ISO string as default; existing rows get this timestamp.
+            cursor.execute("ALTER TABLE topics ADD COLUMN created_at TIMESTAMP DEFAULT '2000-01-01 00:00:00'")
+
+        # --- Migrate questions: recreate with ON DELETE CASCADE on topic_id if needed ---
+        cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='questions'")
+        questions_sql_row = cursor.fetchone()
+        questions_sql = questions_sql_row[0] if questions_sql_row else ''
+        if 'ON DELETE CASCADE' not in questions_sql:
+            cursor.execute("PRAGMA foreign_keys = OFF")
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS questions_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                topic_id INTEGER NOT NULL,
+                question_text TEXT NOT NULL,
+                option_a TEXT NOT NULL,
+                option_b TEXT NOT NULL,
+                option_c TEXT NOT NULL,
+                option_d TEXT NOT NULL,
+                correct_option TEXT NOT NULL,
+                difficulty TEXT NOT NULL CHECK(difficulty IN ('easy', 'medium', 'hard')),
+                explanation TEXT,
+                FOREIGN KEY (topic_id) REFERENCES topics (id) ON DELETE CASCADE
+            )
+            ''')
+            cursor.execute('''
+            INSERT INTO questions_new
+            SELECT id, topic_id, question_text, option_a, option_b, option_c, option_d,
+                   correct_option, difficulty, explanation FROM questions
+            ''')
+            cursor.execute('DROP TABLE questions')
+            cursor.execute('ALTER TABLE questions_new RENAME TO questions')
+            cursor.execute("PRAGMA foreign_keys = ON")
+
+        # --- Migrate quiz_answers: recreate with ON DELETE SET NULL on question_id if needed ---
+        cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='quiz_answers'")
+        qa_sql_row = cursor.fetchone()
+        qa_sql = qa_sql_row[0] if qa_sql_row else ''
+        if 'ON DELETE SET NULL' not in qa_sql:
+            cursor.execute("PRAGMA foreign_keys = OFF")
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS quiz_answers_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                attempt_id INTEGER NOT NULL,
+                question_id INTEGER,
+                selected_option TEXT NOT NULL,
+                is_correct INTEGER NOT NULL,
+                time_spent_seconds INTEGER NOT NULL,
+                FOREIGN KEY (attempt_id) REFERENCES quiz_attempts (id) ON DELETE CASCADE,
+                FOREIGN KEY (question_id) REFERENCES questions (id) ON DELETE SET NULL
+            )
+            ''')
+            cursor.execute('''
+            INSERT INTO quiz_answers_new
+            SELECT id, attempt_id, question_id, selected_option, is_correct, time_spent_seconds
+            FROM quiz_answers
+            ''')
+            cursor.execute('DROP TABLE quiz_answers')
+            cursor.execute('ALTER TABLE quiz_answers_new RENAME TO quiz_answers')
+            cursor.execute("PRAGMA foreign_keys = ON")
+
+        # --- Migrate student_twin_profile: recreate with ON DELETE CASCADE on topic_id if needed ---
+        cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='student_twin_profile'")
+        stp_sql_row = cursor.fetchone()
+        stp_sql = stp_sql_row[0] if stp_sql_row else ''
+        # Check if topic_id FK has ON DELETE CASCADE
+        if 'ON DELETE CASCADE' not in stp_sql or stp_sql.count('ON DELETE CASCADE') < 2:
+            cursor.execute("PRAGMA foreign_keys = OFF")
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS student_twin_profile_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                topic_id INTEGER NOT NULL,
+                total_attempted INTEGER DEFAULT 0,
+                total_correct INTEGER DEFAULT 0,
+                accuracy_rate REAL DEFAULT 0.0,
+                avg_time_per_question REAL DEFAULT 0.0,
+                mastery_status TEXT DEFAULT 'AVERAGE' CHECK(mastery_status IN ('WEAK', 'AVERAGE', 'STRONG')),
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, topic_id),
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                FOREIGN KEY (topic_id) REFERENCES topics (id) ON DELETE CASCADE
+            )
+            ''')
+            cursor.execute('''
+            INSERT OR IGNORE INTO student_twin_profile_new
+            SELECT id, user_id, topic_id, total_attempted, total_correct, accuracy_rate,
+                   avg_time_per_question, mastery_status, last_updated FROM student_twin_profile
+            ''')
+            cursor.execute('DROP TABLE student_twin_profile')
+            cursor.execute('ALTER TABLE student_twin_profile_new RENAME TO student_twin_profile')
             cursor.execute("PRAGMA foreign_keys = ON")
 
         # Clean legacy hardcoded demo accounts so real users don't see fake records
@@ -403,6 +506,7 @@ def get_or_create_topic(subject, name, description=None, db_path=None):
     """
     Finds an existing topic by case-insensitive subject and topic name,
     or inserts a new one if it does not exist.
+    New topics created via this function are marked is_generated=1 (user/AI-generated).
     Returns the topic dictionary: {'id': ..., 'subject': ..., 'name': ..., 'description': ...}
     """
     clean_subj = subject.strip()
@@ -421,8 +525,8 @@ def get_or_create_topic(subject, name, description=None, db_path=None):
 
         desc = (description or f"User-created topic: {clean_name} under {clean_subj}").strip()
         cursor.execute("""
-            INSERT INTO topics (subject, name, description)
-            VALUES (?, ?, ?)
+            INSERT INTO topics (subject, name, description, is_generated)
+            VALUES (?, ?, ?, 1)
         """, (clean_subj, clean_name, desc))
         new_id = cursor.lastrowid
         conn.commit()
@@ -463,6 +567,7 @@ def save_generated_questions(topic_id, questions_list, db_path=None):
     Saves an array of validated question dictionaries into the database under topic_id.
     Each item must have: question_text, option_a, option_b, option_c, option_d,
     correct_option, difficulty, explanation.
+    After saving, runs cleanup_old_quiz_sets to enforce the 10-quiz limit.
     Returns the count of successfully inserted questions.
     """
     if not questions_list:
@@ -488,12 +593,61 @@ def save_generated_questions(topic_id, questions_list, db_path=None):
             ))
             inserted += 1
         conn.commit()
-        return inserted
     except Exception:
         conn.rollback()
         raise
     finally:
         conn.close()
+
+    # Enforce 10-quiz limit after every save
+    cleanup_old_quiz_sets(limit=10, db_path=db_path)
+    return inserted
+
+
+def cleanup_old_quiz_sets(limit=10, db_path=None):
+    """
+    Keeps only the `limit` newest AI-generated topics (is_generated=1) and their questions.
+    Deletes older generated topics (oldest first by created_at ASC, then id ASC).
+    Questions cascade-delete via ON DELETE CASCADE on topics FK.
+    student_twin_profile rows cascade-delete via ON DELETE CASCADE on topics FK.
+    quiz_attempts retain their rows but topic_id becomes NULL (preserving history).
+    quiz_answers retain their rows but question_id becomes NULL (preserving history).
+    Pre-seeded topics (is_generated=0) are never counted or deleted.
+    Returns the number of topics deleted (0 if within limit).
+    """
+    conn = get_connection(db_path)
+    try:
+        cursor = conn.cursor()
+        # Fetch generated topic IDs, newest first
+        cursor.execute("""
+            SELECT id FROM topics WHERE is_generated = 1
+            ORDER BY created_at DESC, id DESC
+        """)
+        generated_ids = [row[0] for row in cursor.fetchall()]
+
+        if len(generated_ids) <= limit:
+            return 0
+
+        ids_to_delete = generated_ids[limit:]  # oldest ones beyond the limit
+        placeholders = ','.join('?' for _ in ids_to_delete)
+
+        # Nullify quiz_attempts.topic_id for affected topics (preserves attempt history)
+        cursor.execute(
+            f"UPDATE quiz_attempts SET topic_id = NULL WHERE topic_id IN ({placeholders})",
+            ids_to_delete
+        )
+
+        # Delete the topics — questions and student_twin_profile cascade-delete via FK
+        cursor.execute(f"DELETE FROM topics WHERE id IN ({placeholders})", ids_to_delete)
+
+        conn.commit()
+        return len(ids_to_delete)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 
 def seed_data(db_path=None):
     """Aliases seed_educational_content without creating demo users."""

@@ -24,13 +24,6 @@
     </div>
 
     <div class="dashboard-actions">
-        <a href="{{ url_for('select_quiz') }}" class="btn btn-primary">
-            <i class="bi bi-play-circle me-1"></i> Take a Quiz
-        </a>
-
-        <a href="{{ url_for('custom_quiz') }}" class="btn btn-outline-primary">
-            <i class="bi bi-plus-circle me-1"></i> Custom Quiz
-        </a>
     </div>
 </div>
 
@@ -60,14 +53,12 @@
             </p>
 
             <div class="d-flex flex-wrap gap-2">
-                <a href="{{ url_for('assessment') }}"
-                   class="btn btn-primary px-4">
+                <a href="{{ url_for('assessment') }}" class="btn btn-primary px-4">
                     <i class="bi bi-clipboard2-check me-2"></i>
                     Start Initial Assessment
                 </a>
 
-                <a href="{{ url_for('select_quiz') }}"
-                   class="btn btn-outline-secondary px-4">
+                <a href="{{ url_for('select_quiz') }}" class="btn btn-outline-secondary px-4">
                     <i class="bi bi-grid me-2"></i>
                     Browse Quizzes
                 </a>
@@ -146,9 +137,9 @@
 
             <div class="metric-val">
                 {% if twin_data.is_new_student %}
-                    --
+                --
                 {% else %}
-                    {{ twin_data.overall_accuracy }}%
+                {{ twin_data.overall_accuracy }}%
                 {% endif %}
             </div>
 
@@ -169,17 +160,17 @@
 
             <div class="metric-val">
                 {% if twin_data.is_new_student %}
-                    --
+                --
                 {% else %}
-                    {{ twin_data.speed_score }}%
+                {{ twin_data.speed_score }}%
                 {% endif %}
             </div>
 
             <div class="metric-description">
                 {% if twin_data.avg_speed_time > 0 %}
-                    ~{{ twin_data.avg_speed_time }}s / question
+                ~{{ twin_data.avg_speed_time }}s / question
                 {% else %}
-                    Not calibrated
+                Not calibrated
                 {% endif %}
             </div>
         </div>
@@ -196,17 +187,17 @@
 
             <div class="metric-val">
                 {% if twin_data.consistency_score is not none %}
-                    {{ twin_data.consistency_score }}%
+                {{ twin_data.consistency_score }}%
                 {% else %}
-                    --
+                --
                 {% endif %}
             </div>
 
             <div class="metric-description">
                 {% if twin_data.consistency_score is not none %}
-                    Performance stability
+                Performance stability
                 {% else %}
-                    Needs 2+ quizzes
+                Needs 2+ quizzes
                 {% endif %}
             </div>
         </div>
@@ -223,19 +214,19 @@
 
             <div class="metric-val">
                 {% if twin_data.improvement_rate is not none %}
-                    <span class="{{ 'text-success' if twin_data.improvement_rate >= 0 else 'text-danger' }}">
-                        {{ '+' if twin_data.improvement_rate > 0 else '' }}{{ twin_data.improvement_rate }}%
-                    </span>
+                <span class="{{ 'text-success' if twin_data.improvement_rate >= 0 else 'text-danger' }}">
+                    {{ '+' if twin_data.improvement_rate > 0 else '' }}{{ twin_data.improvement_rate }}%
+                </span>
                 {% else %}
-                    --
+                --
                 {% endif %}
             </div>
 
             <div class="metric-description">
                 {% if twin_data.improvement_rate is not none %}
-                    Change over time
+                Change over time
                 {% else %}
-                    Needs 3+ quizzes
+                Needs 3+ quizzes
                 {% endif %}
             </div>
         </div>
@@ -268,88 +259,84 @@
 
             {% if twin_data.primary_weak %}
 
-                <div class="focus-topic">
-                    <div class="focus-topic-name">
-                        {{ twin_data.primary_weak.topic_name }}
-                    </div>
+            <div class="focus-topic">
+                <div class="focus-topic-name">
+                    {{ twin_data.primary_weak.topic_name }}
+                </div>
 
-                    <div class="text-muted small mb-3">
-                        {{ twin_data.primary_weak.subject }}
-                    </div>
+                <div class="text-muted small mb-3">
+                    {{ twin_data.primary_weak.subject }}
+                </div>
 
-                    <div class="focus-stat">
-                        <span>Accuracy</span>
-                        <strong class="text-danger">
-                            {{ twin_data.primary_weak.accuracy_rate }}%
-                        </strong>
-                    </div>
+                <div class="focus-stat">
+                    <span>Accuracy</span>
+                    <strong class="text-danger">
+                        {{ twin_data.primary_weak.accuracy_rate }}%
+                    </strong>
+                </div>
 
-                    <div class="progress mb-3" style="height: 7px;">
-                        <div class="progress-bar bg-danger"
-                             style="width: {{ twin_data.primary_weak.accuracy_rate }}%;">
-                        </div>
-                    </div>
-
-                    <div class="focus-details">
-                        <span>
-                            <i class="bi bi-clock me-1"></i>
-                            {{ twin_data.primary_weak.avg_time_per_question }}s average
-                        </span>
-
-                        <span class="badge badge-weak">
-                            Needs Practice
-                        </span>
+                <div class="progress mb-3" style="height: 7px;">
+                    <div class="progress-bar bg-danger" style="width: {{ twin_data.primary_weak.accuracy_rate }}%;">
                     </div>
                 </div>
 
-                <div class="small text-muted mb-3">
-                    {{ twin_data.prediction.message }}
-                </div>
+                <div class="focus-details">
+                    <span>
+                        <i class="bi bi-clock me-1"></i>
+                        {{ twin_data.primary_weak.avg_time_per_question }}s average
+                    </span>
 
-                <a href="{{ url_for('take_quiz', topic_id=twin_data.primary_weak.topic_id) }}"
-                   class="btn btn-danger w-100">
-                    <i class="bi bi-play-fill me-1"></i>
-                    Practice This Topic
-                </a>
+                    <span class="badge badge-weak">
+                        Needs Practice
+                    </span>
+                </div>
+            </div>
+
+            <div class="small text-muted mb-3">
+                {{ twin_data.prediction.message }}
+            </div>
+
+            <a href="{{ url_for('take_quiz', topic_id=twin_data.primary_weak.topic_id) }}" class="btn btn-danger w-100">
+                <i class="bi bi-play-fill me-1"></i>
+                Practice This Topic
+            </a>
 
             {% elif twin_data.is_new_student %}
 
-                <div class="empty-state">
-                    <i class="bi bi-clipboard2-pulse"></i>
+            <div class="empty-state">
+                <i class="bi bi-clipboard2-pulse"></i>
 
-                    <h6 class="fw-bold mt-3">
-                        No learning data yet
-                    </h6>
+                <h6 class="fw-bold mt-3">
+                    No learning data yet
+                </h6>
 
-                    <p class="text-muted small">
-                        Complete your initial assessment to identify
-                        your strengths and areas for improvement.
-                    </p>
+                <p class="text-muted small">
+                    Complete your initial assessment to identify
+                    your strengths and areas for improvement.
+                </p>
 
-                    <a href="{{ url_for('assessment') }}"
-                       class="btn btn-outline-primary btn-sm">
-                        Start Assessment
-                    </a>
-                </div>
+                <a href="{{ url_for('assessment') }}" class="btn btn-outline-primary btn-sm">
+                    Start Assessment
+                </a>
+            </div>
 
             {% else %}
 
-                <div class="empty-state">
-                    <i class="bi bi-check-circle"></i>
+            <div class="empty-state">
+                <i class="bi bi-check-circle"></i>
 
-                    <h6 class="fw-bold mt-3">
-                        No critical weak areas
-                    </h6>
+                <h6 class="fw-bold mt-3">
+                    No critical weak areas
+                </h6>
 
-                    <p class="text-muted small">
-                        Keep practicing and explore new subjects or topics.
-                    </p>
+                <p class="text-muted small">
+                    Keep practicing and explore new subjects or topics.
+                </p>
 
-                    <a href="{{ url_for('custom_quiz') }}"
-                       class="btn btn-outline-primary btn-sm">
-                        Explore a New Topic
-                    </a>
-                </div>
+                <a href="{{ url_for('custom_quiz') }}" class="btn btn-outline-primary btn-sm">
+                    Explore a New Topic
+                </a>
+            </div>
 
             {% endif %}
 
@@ -425,8 +412,7 @@
                 </div>
             </div>
 
-            <div style="height: 280px; position: relative;"
-                 id="radar-chart-container">
+            <div style="height: 280px; position: relative;" id="radar-chart-container">
                 <canvas id="subjectRadarChart"></canvas>
             </div>
 
@@ -450,8 +436,7 @@
                 </div>
             </div>
 
-            <div style="height: 280px; position: relative;"
-                 id="bar-chart-container">
+            <div style="height: 280px; position: relative;" id="bar-chart-container">
                 <canvas id="topicBarChart"></canvas>
             </div>
 
@@ -481,23 +466,21 @@
 
         <div class="d-flex flex-wrap gap-2">
 
-            <a href="{{ url_for('assessment') }}"
-               class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-clipboard2-check me-1"></i>
-                Assessment
-            </a>
-
-            <a href="{{ url_for('select_quiz') }}"
-               class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-plus-circle me-1"></i>
-                Take Quiz
-            </a>
-
-            <a href="{{ url_for('custom_quiz') }}"
-               class="btn btn-primary btn-sm">
+            <a href="{{ url_for('custom_quiz') }}" class="btn btn-primary btn-sm">
                 <i class="bi bi-plus-lg me-1"></i>
                 Custom Topic
             </a>
+
+            <!-- Naya Clear All Button -->
+            <form action="{{ url_for('clear_all_generated') }}" method="POST" class="d-inline"
+                onsubmit="return confirm('Do you Want to Delet All Quizzes?');">
+                <!-- Yeh line add karni hai -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <button type="submit" class="btn btn-outline-danger btn-sm ms-2">
+                    <i class="bi bi-trash"></i> Clear All
+                </button>
+            </form>
 
         </div>
     </div>
@@ -539,13 +522,13 @@
 
                     <td>
                         {% if topic.total_attempted > 0 %}
-                            <span class="small">
-                                {{ topic.total_attempted }}
-                            </span>
+                        <span class="small">
+                            {{ topic.total_attempted }}
+                        </span>
                         {% else %}
-                            <span class="text-muted small">
-                                Unassessed
-                            </span>
+                        <span class="text-muted small">
+                            Unassessed
+                        </span>
                         {% endif %}
                     </td>
 
@@ -559,8 +542,7 @@
                                 <div class="progress-bar
                                     {{ 'bg-danger' if topic.accuracy_rate < 50
                                     else ('bg-warning' if topic.accuracy_rate <= 75
-                                    else 'bg-success') }}"
-                                    style="width: {{ topic.accuracy_rate }}%;">
+                                    else 'bg-success') }}" style="width: {{ topic.accuracy_rate }}%;">
                                 </div>
                             </div>
 
@@ -572,7 +554,7 @@
 
                         {% else %}
 
-                            <span class="text-muted small">--</span>
+                        <span class="text-muted small">--</span>
 
                         {% endif %}
 
@@ -581,11 +563,11 @@
                     <td>
 
                         {% if topic.total_attempted > 0 %}
-                            <span class="small">
-                                {{ topic.avg_time_per_question }}s
-                            </span>
+                        <span class="small">
+                            {{ topic.avg_time_per_question }}s
+                        </span>
                         {% else %}
-                            <span class="text-muted small">--</span>
+                        <span class="text-muted small">--</span>
                         {% endif %}
 
                     </td>
@@ -594,31 +576,31 @@
 
                         {% if topic.mastery_status == 'STRONG' %}
 
-                            <span class="badge badge-strong">
-                                <i class="bi bi-check-circle me-1"></i>
-                                Strong
-                            </span>
+                        <span class="badge badge-strong">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Strong
+                        </span>
 
                         {% elif topic.mastery_status == 'WEAK' %}
 
-                            <span class="badge badge-weak">
-                                <i class="bi bi-exclamation-circle me-1"></i>
-                                Weak
-                            </span>
+                        <span class="badge badge-weak">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            Weak
+                        </span>
 
                         {% elif topic.mastery_status == 'AVERAGE' %}
 
-                            <span class="badge badge-average">
-                                <i class="bi bi-dash-circle me-1"></i>
-                                Average
-                            </span>
+                        <span class="badge badge-average">
+                            <i class="bi bi-dash-circle me-1"></i>
+                            Average
+                        </span>
 
                         {% else %}
 
-                            <span class="badge bg-light text-muted border">
-                                <i class="bi bi-hourglass me-1"></i>
-                                Unassessed
-                            </span>
+                        <span class="badge bg-light text-muted border">
+                            <i class="bi bi-hourglass me-1"></i>
+                            Unassessed
+                        </span>
 
                         {% endif %}
 
@@ -627,7 +609,7 @@
                     <td class="text-end">
 
                         <a href="{{ url_for('take_quiz', topic_id=topic.topic_id) }}"
-                           class="btn btn-sm btn-outline-primary">
+                            class="btn btn-sm btn-outline-primary">
                             Practice
                         </a>
 

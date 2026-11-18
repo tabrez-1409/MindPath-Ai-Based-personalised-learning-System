@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,14 +14,17 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('dashboard') if current_user else url_for('login') }}">
+            <a class="navbar-brand d-flex align-items-center gap-2"
+                href="{{ url_for('dashboard') if current_user else url_for('login') }}">
                 <span class="fs-4">🧠</span>
                 <span class="brand-logo fs-4">MindPath</span>
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1" style="font-size: 0.7rem;"></span>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1"
+                    style="font-size: 0.7rem;"></span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navContent">
                 <span class="navbar-toggler-icon"></span>
@@ -29,22 +33,27 @@
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-3">
                     {% if current_user %}
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active fw-semibold text-primary{% endif %}" href="{{ url_for('dashboard') }}">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active fw-semibold text-primary{% endif %}"
+                            href="{{ url_for('dashboard') }}">
                             <i class="bi bi-speedometer2 me-1"></i> MindPath Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'initial_assessment' %}active fw-semibold text-primary{% endif %}" href="{{ url_for('assessment') }}">
-                            <i class="bi bi-clipboard2-check me-1"></i> Initial Assessment
+                        <a class="nav-link {% if request.endpoint == 'initial_assessment' %}active fw-semibold text-primary{% endif %}"
+                            href="{{ url_for('assessment') }}">
+                            <i class="bi bi-clipboard2-check me-1"></i> Initiate Assessment
                         </a>
                     </li>
+
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint in ['select_quiz', 'take_quiz'] %}active fw-semibold text-primary{% endif %}" href="{{ url_for('select_quiz') }}">
+                        <a class="nav-link {% if request.endpoint in ['select_quiz', 'take_quiz'] %}active fw-semibold text-primary{% endif %}"
+                            href="{{ url_for('select_quiz') }}">
                             <i class="bi bi-lightning-charge me-1"></i> Adaptive Quizzes
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'custom_quiz' %}active fw-semibold text-primary{% endif %}" href="{{ url_for('custom_quiz') }}">
+                        <a class="nav-link {% if request.endpoint == 'custom_quiz' %}active fw-semibold text-primary{% endif %}"
+                            href="{{ url_for('custom_quiz') }}">
                             <i class="bi bi-plus-circle me-1"></i> Custom Quiz
                         </a>
                     </li>
@@ -81,27 +90,30 @@
     <main class="container my-4 flex-grow-1">
         <!-- Flash Feedback Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="mb-4">
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm" role="alert">
-                        <i class="bi {{ 'bi-check-circle-fill' if category == 'success' else ('bi-exclamation-triangle-fill' if category in ['danger', 'error'] else 'bi-info-circle-fill') }} me-2"></i>
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-                </div>
-            {% endif %}
+        {% if messages %}
+        <div class="mb-4">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm"
+                role="alert">
+                <i
+                    class="bi {{ 'bi-check-circle-fill' if category == 'success' else ('bi-exclamation-triangle-fill' if category in ['danger', 'error'] else 'bi-info-circle-fill') }} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% endwith %}
 
         {% if error_title %}
         <div class="text-center py-5">
             <h1 class="display-4 fw-bold text-danger">{{ error_title }}</h1>
             <p class="lead text-muted">{{ error_message }}</p>
-            <a href="{{ url_for('dashboard') if current_user else url_for('login') }}" class="btn btn-primary mt-3">Return Home</a>
+            <a href="{{ url_for('dashboard') if current_user else url_for('login') }}"
+                class="btn btn-primary mt-3">Return Home</a>
         </div>
         {% else %}
-            {% block content %}{% endblock %}
+        {% block content %}{% endblock %}
         {% endif %}
     </main>
 
@@ -116,4 +128,5 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     {% block scripts %}{% endblock %}
 </body>
+
 </html>

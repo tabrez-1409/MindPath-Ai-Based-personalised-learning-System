@@ -1105,6 +1105,145 @@ class LearnTwinAuthAndTwinTestCase(unittest.TestCase):
                     self.assertTrue(diag['success'])
                     self.assertEqual(diag['model'], "gemini-3.5-flash-lite")
 
+    # 40. cleanup_old_quiz_sets keeps only the 10 newest generated topics
+    def test_40_cleanup_keeps_only_10_generated_topics(self):
+        # Seed 12 generated topics (beyond the 6 seeded ones)
+        for i in range(1, 13):
+            topic = database.get_or_create_topic(
+                subject=f"TestSubject{i}",
+                name=f"TestTopic{i}",
+                db_path=test_db_path
+            )
+            # Save a dummy question so the topic has content
+            database.save_generated_questions(topic['id'], [{
+                'question_text': f"Q{i}?",
+                'option_a': 'A', 'option_b': 'B', 'option_c': 'C', 'option_d': 'D',
+                'correct_option': 'A', 'difficulty': 'easy', 'explanation': ''
+            }], db_path=test_db_path)
+
+        # After saving 12th, cleanup_old_quiz_sets is called automatically
+        conn = database.get_connection(test_db_path)
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM topics WHERE is_generated = 1")
+            count = cursor.fetchone()[0]
+        finally:
+            conn.close()
+
+        self.assertEqual(count, 10, f"Expected exactly 10 generated topics, got {count}")
+
+    # 41. Questions for deleted topics are cascade-deleted
+    def test_41_questions_cascade_deleted_with_topic(self):
+        # Create 11 generated topics with questions
+        topic_ids = []
+        for i in range(1, 12):
+            topic = database.get_or_create_topic(
+                subject="CascadeTest",
+                name=f"CascadeTopic{i}",
+                db_path=test_db_path
+            )
+            database.save_generated_questions(topic['id'], [{
+                'question_text': f"CascadeQ{i}?",
+                'option_a': 'A', 'option_b': 'B', 'option_c': 'C', 'option_d': 'D',
+                'correct_option': 'A', 'difficulty': 'easy', 'explanation': ''
+            }], db_path=test_db_path)
+            topic_ids.append(topic['id'])
+
+        conn = database.get_connection(test_db_path)
+        try:
+            cursor = conn.cursor()
+            # The oldest topic (topic_ids[0]) should have been deleted
+            cursor.execute("SELECT COUNT(*) FROM topics WHERE id = ?", (topic_ids[0],))
+            topic_exists = cursor.fetchone()[0]
+            # Its questions should also be gone
+            cursor.execute("SELECT COUNT(*) FROM questions WHERE topic_id = ?", (topic_ids[0],))
+            q_count = cursor.fetchone()[0]
+        finally:
+            conn.close()
+
+        self.assertEqual(topic_exists, 0, "Oldest topic should have been deleted")
+        self.assertEqual(q_count, 0, "Questions for deleted topic should be cascade-deleted")
+
+    # 42. Quiz attempts are preserved after topic deletion (topic_id becomes NULL)
+    def test_42_quiz_attempts_preserved_after_topic_deletion(self):
+        # Register a user and take a quiz on a generated topic
+        self._register_student("HistoryUser", "history@test.edu", "Password123#")
+        with self.client.session_transaction() as sess:
+            sess['user_id'] = database.get_user_by_email("history@test.edu", test_db_path)['id']
+
+        topic = database.get_or_create_topic("HistorySubj", "HistoryTopic1", db_path=test_db_path)
+        database.save_generated_questions(topic['id'], [{
+            'question_text': "History Q?",
+            'option_a': 'A', 'option_b': 'B', 'option_c': 'C', 'option_d': 'D',
+            'correct_option': 'A', 'difficulty': 'easy', 'explanation': ''
+        }], db_path=test_db_path)
+
+        # Record an attempt for this topic
+        conn = database.get_connection(test_db_path)
+        try:
+            cursor = conn.cursor()
+            user_id = database.get_user_by_email("history@test.edu", test_db_path)['id']
+            cursor.execute("""
+                INSERT INTO quiz_attempts (user_id, topic_id, quiz_type, score, total_questions, time_taken_seconds)
+                VALUES (?, ?, 'adaptive', 1, 1, 10)
+            """, (user_id, topic['id']))
+            attempt_id = cursor.lastrowid
+            conn.commit()
+        finally:
+            conn.close()
+
+        # Now push 10 more topics to trigger deletion of HistoryTopic1
+        for i in range(1, 11):
+            t = database.get_or_create_topic("PushSubj", f"PushTopic{i}", db_path=test_db_path)
+            database.save_generated_questions(t['id'], [{
+                'question_text': f"PushQ{i}?",
+                'option_a': 'A', 'option_b': 'B', 'option_c': 'C', 'option_d': 'D',
+                'correct_option': 'A', 'difficulty': 'easy', 'explanation': ''
+            }], db_path=test_db_path)
+
+        conn = database.get_connection(test_db_path)
+        try:
+            cursor = conn.cursor()
+            # Attempt should still exist
+            cursor.execute("SELECT id, topic_id FROM quiz_attempts WHERE id = ?", (attempt_id,))
+            row = cursor.fetchone()
+        finally:
+            conn.close()
+
+        self.assertIsNotNone(row, "Quiz attempt should be preserved after topic deletion")
+        self.assertIsNone(row['topic_id'], "topic_id should be NULL after topic deletion")
+
+    # 43. /quizzes route shows at most 10 generated topics + seeded topics
+    def test_43_quizzes_route_shows_limited_topics(self):
+        self._register_student("QuizListUser", "quizlist@test.edu", "Password123#")
+        with self.client.session_transaction() as sess:
+            sess['user_id'] = database.get_user_by_email("quizlist@test.edu", test_db_path)['id']
+
+        # Create 15 generated topics
+        for i in range(1, 16):
+            t = database.get_or_create_topic("ListSubj", f"ListTopic{i}", db_path=test_db_path)
+            database.save_generated_questions(t['id'], [{
+                'question_text': f"ListQ{i}?",
+                'option_a': 'A', 'option_b': 'B', 'option_c': 'C', 'option_d': 'D',
+                'correct_option': 'A', 'difficulty': 'easy', 'explanation': ''
+            }], db_path=test_db_path)
+
+        conn = database.get_connection(test_db_path)
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM topics WHERE is_generated = 1")
+            generated_count = cursor.fetchone()[0]
+        finally:
+            conn.close()
+
+        self.assertLessEqual(generated_count, 10,
+            f"Generated topic count should be <= 10, got {generated_count}")
+
+        # Verify /quizzes route executes without SQLite errors and returns 200
+        res = self.client.get('/quizzes')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"Select an Adaptive Quiz", res.data)
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -13,7 +13,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from database import (
     init_db, migrate_db, seed_educational_content,
     get_connection, get_user_by_email, get_user_by_id, create_user,
-    get_or_create_topic, get_all_subjects_and_topics, save_generated_questions
+    get_or_create_topic, get_all_subjects_and_topics, save_generated_questions,
+    cleanup_old_quiz_sets
 )
 from twin_engine import (
     get_student_twin_overview,
@@ -47,6 +48,7 @@ with app.app_context():
     init_db()
     migrate_db()
     seed_educational_content()
+    cleanup_old_quiz_sets(limit=10)  # Enforce 10-quiz limit on startup
 
 # In-Memory Rate Limiting for Login Protection
 FAILED_LOGINS = {}  # key: ip_or_email -> list of timestamps
@@ -400,7 +402,19 @@ def select_quiz():
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, subject, name, description FROM topics ORDER BY subject COLLATE NOCASE ASC, name COLLATE NOCASE ASC")
+        # Show all pre-seeded topics + at most the 10 newest generated topics
+        cursor.execute("""
+            SELECT id, subject, name, description, created_at FROM (
+                SELECT id, subject, name, description, created_at FROM topics WHERE is_generated = 0
+                UNION ALL
+                SELECT id, subject, name, description, created_at FROM (
+                    SELECT id, subject, name, description, created_at FROM topics WHERE is_generated = 1
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT 10
+                )
+            )
+            ORDER BY created_at DESC, id DESC
+        """)
         raw_topics = [dict(row) for row in cursor.fetchall()]
     finally:
         conn.close()
@@ -423,6 +437,31 @@ def select_quiz():
         })
 
     return render_template('quiz_select.html', current_user=user, topics=enriched_topics)
+
+# --- Admin / Helper Route to Clear All Quizzes ---
+@app.route('/admin/clear-generated', methods=['POST'])
+@login_required
+def clear_all_generated():
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        
+        # 1. Sabhi quiz_attempts ka topic_id NULL karein taaki foreign key constraint error na aaye
+        cursor.execute("UPDATE quiz_attempts SET topic_id = NULL")
+        
+        # 2. Saare topics (chahe generated ho ya pre-seeded) aur unke questions ko delete karein
+        cursor.execute("DELETE FROM topics")
+        
+        conn.commit()
+        flash("All topics and quiz data cleared successfully!", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error clearing data: {e}", "danger")
+    finally:
+        conn.close()
+    return redirect(url_for('dashboard'))
+
+
 
 @app.route('/quiz/custom', methods=['GET', 'POST'])
 @login_required
